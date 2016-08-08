@@ -17,24 +17,20 @@
 
 #pragma once
 
-#include <stdint.h>
+typedef struct opflow_data_s {
+    union {
+        int16_t A[2];
+        struct {
+            int16_t X;
+            int16_t Y;
+        } V;
+    } delta;
 
-void taskMainPidLoopChecker(void);
-void taskHandleSerial(void);
-void taskUpdateBeeper(void);
-void taskUpdateBattery(void);
-bool taskUpdateRxCheck(uint32_t currentDeltaTime);
-void taskUpdateRxMain(void);
-void taskProcessGPS(void);
-void taskProcessOpticalFlow(void);
-void taskUpdateCompass(void);
-void taskUpdateBaro(void);
-void taskUpdateSonar(void);
-void taskUpdateDisplay(void);
-void taskTelemetry(void);
-void taskLedStrip(void);
-void taskSystem(void);
-#ifdef USE_PMW_SERVO_DRIVER
-void taskSyncPwmDriver(void);
-#endif
-void taskStackCheck(void);
+    int16_t quality;
+} opflow_data_t;
+
+typedef struct opflow_s {
+    sensorInitFuncPtr init;     // initialize function
+    sensorReadFuncPtr read;     // read DX, DY (in pixels) and surface quality (0-255)
+    bool hasSoftSPI;            // Has software SPI
+} opflow_t;

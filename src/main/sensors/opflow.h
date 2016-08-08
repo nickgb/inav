@@ -19,22 +19,18 @@
 
 #include <stdint.h>
 
-void taskMainPidLoopChecker(void);
-void taskHandleSerial(void);
-void taskUpdateBeeper(void);
-void taskUpdateBattery(void);
-bool taskUpdateRxCheck(uint32_t currentDeltaTime);
-void taskUpdateRxMain(void);
-void taskProcessGPS(void);
-void taskProcessOpticalFlow(void);
-void taskUpdateCompass(void);
-void taskUpdateBaro(void);
-void taskUpdateSonar(void);
-void taskUpdateDisplay(void);
-void taskTelemetry(void);
-void taskLedStrip(void);
-void taskSystem(void);
-#ifdef USE_PMW_SERVO_DRIVER
-void taskSyncPwmDriver(void);
-#endif
-void taskStackCheck(void);
+typedef enum {
+    OPTICAL_FLOW_NONE = 0,
+    OPTICAL_FLOW_ADNS3080
+} opticalFlowType_e;
+
+typedef struct opticalFlowData_s {
+    int     flowQuality;          // 0 to 100
+    float   flowVelX;
+    float   flowVelY;
+} opticalFlowData_t;
+
+extern opflow_t opflow;
+extern opticalFlowData_t opticalFlow;
+
+extern void taskProcessOpticalFlow(void);

@@ -61,6 +61,9 @@
 #include "drivers/compass_ak8963.h"
 #include "drivers/compass_mag3110.h"
 
+#include "drivers/opflow.h"
+#include "drivers/opflow_adns3080.h"
+
 #include "drivers/sonar_hcsr04.h"
 #include "drivers/sonar_srf10.h"
 
@@ -77,6 +80,7 @@
 #include "sensors/gyro.h"
 #include "sensors/compass.h"
 #include "sensors/rangefinder.h"
+#include "sensors/opflow.h"
 #include "sensors/initialisation.h"
 
 #ifdef USE_HARDWARE_REVISION_DETECTION
@@ -86,8 +90,9 @@
 extern baro_t baro;
 extern mag_t mag;
 extern sensor_align_e gyroAlign;
+extern opflow_t opflow;
 
-uint8_t detectedSensors[SENSOR_INDEX_COUNT] = { GYRO_NONE, ACC_NONE, BARO_NONE, MAG_NONE, RANGEFINDER_NONE };
+uint8_t detectedSensors[SENSOR_INDEX_COUNT] = { GYRO_NONE, ACC_NONE, BARO_NONE, MAG_NONE, RANGEFINDER_NONE, OPTICAL_FLOW_NONE };
 
 
 const extiConfig_t *selectMPUIntExtiConfig(void)
@@ -712,6 +717,31 @@ static rangefinderType_e detectRangefinder(void)
 }
 #endif
 
+#ifdef OPTICAL_FLOW
+static opticalFlowType_e detectOpticalFlow(void)
+{
+    opticalFlowType_e opticalFlowType = OPTICAL_FLOW_NONE;
+
+    memset(&opflow, 0, sizeof(opflow));
+    opflow.hasSoftSPI = feature(FEATURE_SOFTSPI);
+
+#if defined(USE_OPTICAL_FLOW_ADNS3080_SOFTSPI)
+    if ((opticalFlowType == OPTICAL_FLOW_NONE) && opflowADNS3080Detect(&opflow)) {
+        opticalFlowType = OPTICAL_FLOW_ADNS3080;
+    }
+#endif
+
+    // Detection finished - store sensor type
+    detectedSensors[SENSOR_INDEX_OPTICAL_FLOW] = opticalFlowType;
+
+    if (opticalFlowType != OPTICAL_FLOW_NONE) {
+        sensorsSet(SENSOR_OPTICAL_FLOW);
+    }
+
+    return opticalFlowType;
+}
+#endif
+
 static void reconfigureAlignment(const sensorAlignmentConfig_t *sensorAlignmentConfig)
 {
     if (sensorAlignmentConfig->gyro_align != ALIGN_DEFAULT) {
@@ -784,6 +814,15 @@ bool sensorsAutodetect(sensorAlignmentConfig_t *sensorAlignmentConfig,
     rangefinderInit(rangefinderType);
 #endif
     reconfigureAlignment(sensorAlignmentConfig);
+
+#ifdef OPTICAL_FLOW
+    detectOpticalFlow();
+
+    if (sensors(SENSOR_OPTICAL_FLOW)) {
+        delay(10);
+        opflow.init();
+    }
+#endif
 
     return true;
 }
