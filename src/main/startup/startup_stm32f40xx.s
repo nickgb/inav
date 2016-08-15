@@ -126,8 +126,8 @@ LoopMarkHeapStack:
  orr     r1,r1,#(0xF << 20)
  str     r1,[r0]
 
-/* Call the clock system intitialization function.*/
-  bl  SystemInit  
+/* Call the clock system intitialization function.*/ 
+    bl  SystemInit  
 
 /* Call the application's entry point.*/
   bl  main
@@ -137,6 +137,19 @@ LoopForever:
   b LoopForever
 
 Reboot_Loader:                // mj666
+#ifdef PIXRACER
+  // RCC->APB2ENR |= RCC_APB2Periph_SYSCFG;
+  ldr     r0, =0x40023800
+  ldr     r1, [r0, #0x44]
+  orr     r1, r1, 0x00004000    // RCC_APB2Periph_SYSCFG
+  str     r1, [r0, #0x44]
+
+  // Remap system memory to 0x00000000
+  // SYSCFG->MEMRMP = SYSCFG_MemoryRemap_SystemFlash
+  ldr     r0, =0x40013800
+  ldr     r1, =0x00000001
+  str     r1, [r0]
+#endif
 
   // Reboot to ROM            // mj666
   ldr     r0, =0x1FFF0000     // mj666
@@ -165,17 +178,13 @@ Infinite_Loop:
 * 0x0000.0000.
 *
 *******************************************************************************/
-  .section  .irqstack,"aw",%progbits
-  irq_stack:
-  .space  1024
-
   .section  .isr_vector,"a",%progbits
   .type  g_pfnVectors, %object
   .size  g_pfnVectors, .-g_pfnVectors
    
    
 g_pfnVectors:
-  .word  irq_stack+1024
+  .word  _estack
   .word  Reset_Handler
   .word  NMI_Handler
   .word  HardFault_Handler
