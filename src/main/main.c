@@ -631,6 +631,7 @@ void processLoopback(void) {
 int main(void)
 {
     init();
+
     while (true) {
         scheduler();
         processLoopback();

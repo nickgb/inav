@@ -19,7 +19,6 @@
 
 #include <stdint.h>
 
-void taskMainPidLoopChecker(void);
 void taskHandleSerial(void);
 void taskUpdateBeeper(void);
 void taskUpdateBattery(void);
@@ -33,9 +32,19 @@ void taskUpdateDisplay(void);
 void taskTelemetry(void);
 void taskLedStrip(void);
 void taskSystem(void);
+
 #ifdef USE_PMW_SERVO_DRIVER
 void taskSyncPwmDriver(void);
 #endif
+
 void taskStackCheck(void);
+
+void taskMainPidLoop(void);
+void taskGyro(void);
+
+#ifdef ASYNC_GYRO_PROCESSING
+void taskAcc(void);
+void taskAttitude(void);
+#endif
 
 void fcTasksInit(void);
