@@ -662,7 +662,13 @@ void taskGyro(void) {
         }
     }
 
+    /* Update actual hardware readings */
     gyroUpdate();
+
+#ifdef ASYNC_GYRO_PROCESSING
+    /* Update IMU for better accuracy */
+    imuUpdateGyroscope(currentDeltaTime + (micros() - currentTime));
+#endif
 }
 
 bool taskUpdateRxCheck(uint32_t currentDeltaTime)
