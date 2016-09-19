@@ -359,6 +359,7 @@ void busSpiProcessTxn(const void * hwDesc, BusTransaction_t * txn)
 
         case TXN_BUSY_COMPLETE:
             IOHi((IO_t)txn->device);
+            txn->state = TXN_DONE;
             break;
 
         default:    // Driver shouldn't receive TXN descriptor which is IDLE -> do nothing
