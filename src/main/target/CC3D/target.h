@@ -38,10 +38,10 @@
 #define I2C_DEVICE (I2CDEV_2) // Flex port - SCL/PB10, SDA/PB11
 
 #define MPU6000_CS_PIN          PA4
-#define MPU6000_SPI_INSTANCE    SPI1
+#define MPU6000_BUS             BUS_SPI1
 
 #define M25P16_CS_PIN           PB12
-#define M25P16_SPI_INSTANCE     SPI2
+#define M25P16_BUS              BUS_SPI2
 
 #define USE_FLASHFS
 #define USE_FLASH_M25P16
