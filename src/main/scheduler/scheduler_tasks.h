@@ -19,6 +19,8 @@
 
 #include <stdint.h>
 
+bool taskBusCheck(uint32_t currentDeltaTime);
+void taskBus(void);
 void taskMainPidLoopChecker(void);
 void taskHandleSerial(void);
 void taskUpdateBeeper(void);

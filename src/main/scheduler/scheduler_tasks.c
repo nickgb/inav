@@ -31,6 +31,14 @@ cfTask_t cfTasks[TASK_COUNT] = {
         .staticPriority = TASK_PRIORITY_HIGH,
     },
 
+    [TASK_BUS] = {
+        .taskName = "BUS",
+        .checkFunc = taskBusCheck,
+        .taskFunc = taskBus,
+        .desiredPeriod = 1000000 / 1000,
+        .staticPriority = TASK_PRIORITY_HIGH,
+    },
+
     [TASK_GYROPID] = {
         .taskName = "GYRO/PID",
         .taskFunc = taskMainPidLoopChecker,

@@ -330,18 +330,18 @@ bool busSpiInit(const void * hwDesc)
 void busSpiProcessTxn(const void * hwDesc, BusTransaction_t * txn)
 {
     SPI_TypeDef * instance = (SPI_TypeDef *)hwDesc;
-    uint8_t * buf_in;
-    uint8_t * buf_out;
+    uint8_t * buf_rx;
+    uint8_t * buf_tx;
 
     switch (txn->state) {
         case TXN_QUEUED:    // TXN is not yet executed, mark as busy and fall-through
             if (txn->type == BUS_READ) {
-                buf_in = NULL;
-                buf_out = txn->payload;
+                buf_tx = NULL;
+                buf_rx = txn->payload;
             }
             else {
-                buf_in = txn->payload;
-                buf_out = NULL;
+                buf_tx = txn->payload;
+                buf_rx = NULL;
             }
 
         case TXN_BUSY_SETUP:
@@ -354,7 +354,7 @@ void busSpiProcessTxn(const void * hwDesc, BusTransaction_t * txn)
 
         case TXN_BUSY_PAYLOAD:
             if (txn->payload_bytes) {
-                txn->transfered_bytes = spiTransfer(instance, buf_out, buf_in, txn->payload_bytes);
+                txn->transfered_bytes = spiTransfer(instance, buf_rx, buf_tx, txn->payload_bytes);
             }
 
         case TXN_BUSY_COMPLETE:

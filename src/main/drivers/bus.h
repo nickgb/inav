@@ -113,4 +113,3 @@ bool busIsBusy(const Bus_t busId);
 
 void busInit();
 bool busInitDriver(const Bus_t busId);
-void busProcessPendingTransactions(void);
