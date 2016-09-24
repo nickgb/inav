@@ -491,9 +491,18 @@ static void updateEstimatedTopic(uint32_t currentTime)
         return;
     }
 
-    /* Flags */
-    bool altitudeCorrectionApplied = false;
-    bool positionCorrectionApplied = false;
+    /* Calculate new EPH and EPV for the case we didn't update postion */
+    float newEPH = posEstimator.est.eph;
+    float newEPV = posEstimator.est.epv;
+
+    if (newEPH <= posControl.navConfig->inav.max_eph_epv) {
+        newEPH *= 1.0f + dt;
+    }
+
+    if (newEPV <= posControl.navConfig->inav.max_eph_epv) {
+        newEPV *= 1.0f + dt;
+    }
+
 
     /* Figure out if we have valid position data from our data sources */
     bool isGPSValid = sensors(SENSOR_GPS) && posControl.gpsOrigin.valid && ((currentTime - posEstimator.gps.lastUpdateTime) <= MS2US(INAV_GPS_TIMEOUT_MS));
@@ -551,16 +560,14 @@ static void updateEstimatedTopic(uint32_t currentTime)
             posEstimator.est.pos.V.Y = posEstimator.gps.pos.V.Y;
             posEstimator.est.vel.V.X = posEstimator.gps.vel.V.X;
             posEstimator.est.vel.V.Y = posEstimator.gps.vel.V.Y;
-            posEstimator.est.eph = posEstimator.gps.eph;
-            positionCorrectionApplied = true;
+            newEPH = posEstimator.gps.eph;
             positionWasReset = true;
         }
 
         if (!isEstZValid && useGpsZPos) {
             posEstimator.est.pos.V.Z = posEstimator.gps.pos.V.Z;
             posEstimator.est.vel.V.Z = posEstimator.gps.vel.V.Z;
-            posEstimator.est.epv = posEstimator.gps.epv;
-            altitudeCorrectionApplied = true;
+            newEPV = posEstimator.gps.epv;
             positionWasReset = true;
         }
 
@@ -582,12 +589,12 @@ static void updateEstimatedTopic(uint32_t currentTime)
     }
 
     /* Prediction step: Z-axis */
-    if ((posEstimator.est.epv < posControl.navConfig->inav.max_eph_epv) || useGpsZPos || isBaroValid) {
+    if (isEstZValid || useGpsZPos || isBaroValid) {
         inavFilterPredict(Z, dt, posEstimator.imu.accelNEU.V.Z);
     }
 
     /* Prediction step: XY-axis */
-    if (((posEstimator.est.eph < posControl.navConfig->inav.max_eph_epv) || isGPSValid) && isImuHeadingValid()) {
+    if ((isEstXYValid || isGPSValid) && isImuHeadingValid()) {
         inavFilterPredict(X, dt, posEstimator.imu.accelNEU.V.X);
         inavFilterPredict(Y, dt, posEstimator.imu.accelNEU.V.Y);
     }
@@ -616,7 +623,7 @@ static void updateEstimatedTopic(uint32_t currentTime)
     }
 
     /* Correction step: Z-axis */
-    if ((posEstimator.est.epv < posControl.navConfig->inav.max_eph_epv) || useGpsZPos || isBaroValid) {
+    if (isEstZValid || useGpsZPos || isBaroValid) {
         float gpsWeightScaler = 1.0f;
 
 #if defined(BARO)
@@ -625,8 +632,7 @@ static void updateEstimatedTopic(uint32_t currentTime)
             inavFilterCorrectPos(Z, dt, baroResidual, posControl.navConfig->inav.w_z_baro_p);
 
             /* Adjust EPV */
-            posEstimator.est.epv = updateEPE(posEstimator.est.epv, dt, posEstimator.baro.epv, posControl.navConfig->inav.w_z_baro_p);
-            altitudeCorrectionApplied = true;
+            newEPV = updateEPE(posEstimator.est.epv, dt, posEstimator.baro.epv, posControl.navConfig->inav.w_z_baro_p);
         }
 #endif
 
@@ -636,8 +642,7 @@ static void updateEstimatedTopic(uint32_t currentTime)
             inavFilterCorrectPos(Z, dt, gpsResidual[Z][0], posControl.navConfig->inav.w_z_gps_p * gpsWeightScaler);
 
             /* Adjust EPV */
-            posEstimator.est.epv = updateEPE(posEstimator.est.epv, dt, MAX(posEstimator.gps.epv, gpsResidual[Z][0]), posControl.navConfig->inav.w_z_gps_p);
-            altitudeCorrectionApplied = true;
+            newEPV = updateEPE(posEstimator.est.epv, dt, MAX(posEstimator.gps.epv, gpsResidual[Z][0]), posControl.navConfig->inav.w_z_gps_p);
         }
 
         /* Apply GPS correction to climb rate */
@@ -649,25 +654,21 @@ static void updateEstimatedTopic(uint32_t currentTime)
         inavFilterCorrectVel(Z, dt, 0.0f - posEstimator.est.vel.V.Z, posControl.navConfig->inav.w_z_res_v);
     }
 
-    /* Estimate XY-axis only if heading is valid (X-Y acceleration is North-East)*/
-    if ((posEstimator.est.eph < posControl.navConfig->inav.max_eph_epv) || isGPSValid) {
-        /* Correct position from GPS - always if GPS is valid */
-        if (isGPSValid) {
-            const float gpsResidualMagnitude = sqrtf(sq(gpsResidual[X][0]) + sq(gpsResidual[Y][0]));
-            const float gpsWeightScaler = scaleRangef(bellCurve(gpsResidualMagnitude, INAV_GPS_ACCEPTANCE_EPE), 0.0f, 1.0f, 0.1f, 1.0f);
-            const float w_xy_gps_p = posControl.navConfig->inav.w_xy_gps_p * gpsWeightScaler;
-            const float w_xy_gps_v = posControl.navConfig->inav.w_xy_gps_v * sq(gpsWeightScaler);
+    /* Correct position from GPS - always if GPS is valid */
+    if (isGPSValid) {
+        const float gpsResidualMagnitude = sqrtf(sq(gpsResidual[X][0]) + sq(gpsResidual[Y][0]));
+        const float gpsWeightScaler = scaleRangef(bellCurve(gpsResidualMagnitude, INAV_GPS_ACCEPTANCE_EPE), 0.0f, 1.0f, 0.1f, 1.0f);
+        const float w_xy_gps_p = posControl.navConfig->inav.w_xy_gps_p * gpsWeightScaler;
+        const float w_xy_gps_v = posControl.navConfig->inav.w_xy_gps_v * sq(gpsWeightScaler);
 
-            inavFilterCorrectPos(X, dt, gpsResidual[X][0], w_xy_gps_p);
-            inavFilterCorrectPos(Y, dt, gpsResidual[Y][0], w_xy_gps_p);
+        inavFilterCorrectPos(X, dt, gpsResidual[X][0], w_xy_gps_p);
+        inavFilterCorrectPos(Y, dt, gpsResidual[Y][0], w_xy_gps_p);
 
-            inavFilterCorrectVel(X, dt, gpsResidual[X][1], w_xy_gps_v);
-            inavFilterCorrectVel(Y, dt, gpsResidual[Y][1], w_xy_gps_v);
+        inavFilterCorrectVel(X, dt, gpsResidual[X][1], w_xy_gps_v);
+        inavFilterCorrectVel(Y, dt, gpsResidual[Y][1], w_xy_gps_v);
 
-            /* Adjust EPH */
-            posEstimator.est.eph = updateEPE(posEstimator.est.eph, dt, MAX(posEstimator.gps.eph, gpsResidualMagnitude), posControl.navConfig->inav.w_xy_gps_p);
-            positionCorrectionApplied = true;
-        }
+        /* Adjust EPH */
+        newEPH = updateEPE(posEstimator.est.eph, dt, MAX(posEstimator.gps.eph, gpsResidualMagnitude), posControl.navConfig->inav.w_xy_gps_p);
     }
     else {
         inavFilterCorrectVel(X, dt, 0.0f - posEstimator.est.vel.V.X, posControl.navConfig->inav.w_xy_res_v);
@@ -726,14 +727,9 @@ static void updateEstimatedTopic(uint32_t currentTime)
     posEstimator.est.surfaceVel = 0;
 #endif
 
-    /* Increase uncertainty if we didn't correct position */
-    if (!altitudeCorrectionApplied && (posEstimator.est.eph <= posControl.navConfig->inav.max_eph_epv)) {
-        posEstimator.est.eph *= 1.0f + dt;
-    }
-
-    if (!positionCorrectionApplied && (posEstimator.est.epv <= posControl.navConfig->inav.max_eph_epv)) {
-        posEstimator.est.epv *= 1.0f + dt;
-    }
+    /* Update uncertainty */
+    posEstimator.est.eph = newEPH;
+    posEstimator.est.epv = newEPV;
 }
 
 /**
