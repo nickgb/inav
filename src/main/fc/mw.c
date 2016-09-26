@@ -523,6 +523,33 @@ void filterRc(bool isRXDataNew)
     }
 }
 
+// Function for loop trigger
+void taskGyro(void) {
+    // getTaskDeltaTime() returns delta time freezed at the moment of entering the scheduler. currentTime is freezed at the very same point.
+    // To make busy-waiting timeout work we need to account for time spent within busy-waiting loop
+    uint32_t currentDeltaTime = getTaskDeltaTime(TASK_SELF);
+
+    if (masterConfig.gyroSync) {
+        while (1) {
+        #ifdef ASYNC_GYRO_PROCESSING
+            if (gyroSyncCheckUpdate() || ((currentDeltaTime + (micros() - currentTime)) >= (getGyroUpdateRate() + GYRO_WATCHDOG_DELAY))) {
+        #else
+            if (gyroSyncCheckUpdate() || ((currentDeltaTime + (micros() - currentTime)) >= (gyro.targetLooptime + GYRO_WATCHDOG_DELAY))) {
+        #endif
+                break;
+            }
+        }
+    }
+
+    /* Update actual hardware readings */
+    gyroUpdate();
+
+#ifdef ASYNC_GYRO_PROCESSING
+    /* Update IMU for better accuracy */
+    imuUpdateGyroscope(currentDeltaTime + (micros() - currentTime));
+#endif
+}
+
 void taskMainPidLoop(void)
 {
     cycleTime = getTaskDeltaTime(TASK_SELF);
@@ -642,33 +669,6 @@ void taskMainPidLoop(void)
     }
 #endif
 
-}
-
-// Function for loop trigger
-void taskGyro(void) {
-    // getTaskDeltaTime() returns delta time freezed at the moment of entering the scheduler. currentTime is freezed at the very same point.
-    // To make busy-waiting timeout work we need to account for time spent within busy-waiting loop
-    uint32_t currentDeltaTime = getTaskDeltaTime(TASK_SELF);
-
-    if (masterConfig.gyroSync) {
-        while (1) {
-        #ifdef ASYNC_GYRO_PROCESSING
-            if (gyroSyncCheckUpdate() || ((currentDeltaTime + (micros() - currentTime)) >= (getGyroUpdateRate() + GYRO_WATCHDOG_DELAY))) {
-        #else
-            if (gyroSyncCheckUpdate() || ((currentDeltaTime + (micros() - currentTime)) >= (gyro.targetLooptime + GYRO_WATCHDOG_DELAY))) {
-        #endif
-                break;
-            }
-        }
-    }
-
-    /* Update actual hardware readings */
-    gyroUpdate();
-
-#ifdef ASYNC_GYRO_PROCESSING
-    /* Update IMU for better accuracy */
-    imuUpdateGyroscope(currentDeltaTime + (micros() - currentTime));
-#endif
 }
 
 bool taskUpdateRxCheck(uint32_t currentDeltaTime)
