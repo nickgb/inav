@@ -48,6 +48,7 @@
 #include "drivers/accgyro_spi_mpu6000.h"
 #include "drivers/accgyro_spi_mpu6500.h"
 #include "drivers/accgyro_spi_mpu9250.h"
+#include "drivers/accgyro_spi_icm20608.h"
 #include "drivers/gyro_sync.h"
 
 #include "drivers/barometer.h"
@@ -303,6 +304,20 @@ bool detectGyro(void)
             break;
         }
 #endif
+
+    case GYRO_ICM20608:
+#ifdef USE_GYRO_SPI_ICM20608
+        if (icm20608SpiGyroDetect(&gyro))
+        {
+            gyroHardware = GYRO_ICM20608;
+#ifdef GYRO_MPU9250_ALIGN
+            gyroAlign = GYRO_ICM20608_ALIGN;
+#endif
+
+            break;
+        }
+#endif
+
         ; // fallthrough
         case GYRO_FAKE:
 #ifdef USE_FAKE_GYRO
@@ -442,6 +457,18 @@ retry:
                 accAlign = ACC_MPU9250_ALIGN;
 #endif
                 accHardware = ACC_MPU9250;
+                break;
+            }
+#endif
+            ; // fallthrough
+
+        case ACC_ICM20608:
+#ifdef USE_ACC_SPI_ICM20608
+            if (icm20608SpiAccDetect(&acc)) {
+#ifdef ACC_ICM20608_ALIGN
+                accAlign = ACC_ICM20608_ALIGN;
+#endif
+                accHardware = ACC_ICM20608;
                 break;
             }
 #endif
@@ -741,7 +768,7 @@ bool sensorsAutodetect(sensorAlignmentConfig_t *sensorAlignmentConfig,
     memset(&acc, 0, sizeof(acc));
     memset(&gyro, 0, sizeof(gyro));
 
-#if defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU3050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_ACC_MPU6050) || defined(USE_GYRO_SPI_MPU9250)
+#if defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU3050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_ACC_MPU6050) || defined(USE_GYRO_SPI_MPU9250) || defined(USE_GYRO_SPI_ICM20608)
     const extiConfig_t *extiConfig = selectMPUIntExtiConfig();
     detectMpu(extiConfig);
 #endif
