@@ -22,6 +22,7 @@
 
 #define USBD_PRODUCT_STRING     "PixRacer"
 
+#define USE_HARDWARE_PREBOOT_SETUP      // PixRacer target requires some hardware to be set up before booting and detecting sensors
 #define USE_EXTI
 
 #define LED0                    PB11    //red
