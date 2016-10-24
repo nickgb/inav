@@ -280,7 +280,7 @@ void init(void)
 #endif
 
     pwm_params.pwmProtocolType = masterConfig.motorConfig.motorPwmProtocol;
-    pwm_params.useFastPwm = (masterConfig.motorConfig.motorPwmProtocol == PWM_TYPE_ONESHOT125) || 
+    pwm_params.useFastPwm = (masterConfig.motorConfig.motorPwmProtocol == PWM_TYPE_ONESHOT125) ||
                             (masterConfig.motorConfig.motorPwmProtocol == PWM_TYPE_ONESHOT42) ||
                             (masterConfig.motorConfig.motorPwmProtocol == PWM_TYPE_MULTISHOT);
     pwm_params.motorPwmRate = masterConfig.motorConfig.motorPwmRate;
@@ -400,7 +400,7 @@ void init(void)
             i2cInit(I2C_DEVICE);
         }
     }
-#elif defined(CC3D)
+#elif defined(I2C_DEVICE_SHARES_UART3)
     if (!doesConfigurationUsePort(SERIAL_PORT_USART3)) {
         i2cInit(I2C_DEVICE);
     }
